@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SECURITY_DLPACK
+    bool "Dynamic Least Privilege Access Control Kernel Support"
+    depends on SECURITY
+    default n
+    help
+      This selects the Dynamic Least Privilege Access Control Kernel.
