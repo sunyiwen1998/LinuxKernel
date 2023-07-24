@@ -631,6 +631,45 @@ static const struct file_operations dlpack_proc_per_ops = {
     .write = dlpack_write_proc_per,
 };
 
+static ssize_t dlpack_read_s2rtrace(struct file *filp, char __user *buf,
+                                       size_t count, loff_t *ppos) {
+  printk(KERN_INFO "[S2RTRACE] dlpack_read_s2rtrace\n");
+  char *temp = (char *)kzalloc(sizeof(char) * 400, GFP_KERNEL);
+  ssize_t rc;
+  if (*ppos != 0)
+    return 0;
+  strcat(temp, "You are reading changeRules");
+  strcat(temp, "\n");
+  printk(KERN_INFO "[S2RTRACE] %s\n",temp);
+  rc = simple_read_from_buffer(buf, count, ppos, temp, strlen(temp));
+  return rc;
+}
+
+static ssize_t dlpack_write_s2rtrace(struct file *filep,
+                                         const char __user *ubuf, size_t n,
+                                         loff_t *l) {
+  printk(KERN_INFO "[S2RTRACE] dlpack_write_s2rtrace\n");
+  char *buf;
+  int err;
+
+  buf = memdup_user_nul(ubuf, n);
+  if (IS_ERR(buf)) {
+    err = PTR_ERR(buf);
+    goto out_free_dlp;
+  }
+  printk(KERN_INFO "[S2RTRACE] %s\n",buf);
+out_free_buf:
+  kfree(buf);
+out_free_dlp:
+  return n;
+}
+
+static const struct file_operations dlpack_s2rtrace_ops = {
+    .read = dlpack_read_s2rtrace,
+    .write = dlpack_write_s2rtrace,
+    .llseek = default_llseek,
+};
+
 /**
  * dlpack_init_securityfs - securityfs 初始化函数
  *
@@ -641,7 +680,7 @@ static const struct file_operations dlpack_proc_per_ops = {
 static int __init dlpack_init_securityfs(void) {
   int r;
   struct dentry *dir, *file, *syscall_file, *dlpack_loadRules,
-      *dlpack_changeRules, *proc_per;
+      *dlpack_changeRules, *proc_per, *s2rtrace;
 
   dir = securityfs_create_dir("dlpack", NULL);
   if (IS_ERR(dir)) {
@@ -682,6 +721,14 @@ static int __init dlpack_init_securityfs(void) {
     r = PTR_ERR(proc_per);
     goto error;
   }
+
+  s2rtrace =
+        securityfs_create_file("s2rtrace", 0600, dir, NULL, &dlpack_s2rtrace_ops);
+  if (IS_ERR(s2rtrace)) {
+    r = PTR_ERR(s2rtrace);
+    goto error;
+  }
+
   return 0;
 
 error:
@@ -691,6 +738,7 @@ error:
   securityfs_remove(dlpack_changeRules);
   securityfs_remove(proc_per);
   securityfs_remove(dir);
+  securityfs_remove(s2rtrace);
   return r;
 }
 
